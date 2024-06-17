@@ -167,15 +167,15 @@ Not all cells for `date_first_observation` (DFO) and/or `date_last_observation` 
 distribution <-
   input_data %>%
   # pathway
-  # pivot_longer(
-  #   names_to = "key", 
-  #   values_to = "pathway", 
-  #   starts_with("introduction_pathway"),
-  #   values_drop_na = FALSE) %>%
-  # filter( # keep NA value for species with no pathway provided
-  #   !is.na(pathway) |
-  #     (is.na(pathway) & key == "introduction_pathway_1")
-  #     ) %>% 
+  pivot_longer(
+    names_to = "key",
+    values_to = "pathway",
+    starts_with("introduction_pathway"),
+    values_drop_na = FALSE) %>%
+  filter( # keep NA value for species with no pathway provided
+    !is.na(pathway) |
+      (is.na(pathway) & key == "introduction_pathway_1")
+      ) %>%
   # other terms
   mutate(
     taxonID = taxon_id,
@@ -201,13 +201,13 @@ distribution <-
         paste(date_first_observation, date_last_observation, sep = "/")
     ),
     source = full_reference,
-    #occurrenceRemarks = occurrence_remarks
+    occurrenceRemarks = occurrence_remarks
   ) %>%
   select(
     "taxonID", "locationID", "locality", "countryCode", "occurrenceStatus",
-    "establishmentMeans", #"degreeOfEstablishment",# "pathway", 
-    "eventDate",
-    "source", #"occurrenceRemarks"
+    "establishmentMeans", #"degreeOfEstablishment",
+    "pathway", 
+    "eventDate", "source", "occurrenceRemarks"
   ) %>%
   arrange(taxonID)
 ```
