@@ -323,18 +323,19 @@ Then, we split the information on `-` to get a `start_year` and `end_year`. Most
 
 ```{r}
 distribution %<>%
-  separate(year, into = c("start_year", "end_year"), sep = "-") %>% # Separate year
-  mutate(end_year = case_when(
-    start_year > 2016 ~ format(Sys.Date(), "%Y"),
-    is.na(end_year) ~ "2016",
-    TRUE ~ end_year)
+  separate(
+    year,
+    into = c("date_first_observation", "date_last_observation"),
+    sep = "-") %>% 
+  mutate(
+    eventDate = case_when(
+      is.na(date_first_observation) & is.na(date_last_observation) ~ NA,
+      is.na(date_first_observation) ~ paste0("/", date_last_observation),
+      is.na(date_last_observation) ~ paste0(date_first_observation, "/"),
+      !is.na(date_first_observation) & !is.na(date_last_observation) ~ 
+        paste(date_first_observation, date_last_observation, sep = "/")
+    )
   )
-```
-
-Create `eventDate` by combining `start_year/end_year`:
-
-```{r}
-distribution %<>% mutate(eventDate = paste(start_year, end_year, sep = "/"))
 ```
 
 Compare formatted dates with original dates in `raw_first_occurrence_in_flanders`:
@@ -356,7 +357,7 @@ distribution %<>% mutate(source = raw_full_reference)
 Remove the original columns:
 
 ```{r}
-distribution %<>% select(-starts_with("raw_"), -start_year, -end_year)
+distribution %<>% select(-starts_with("raw_"), -date_first_observation, -date_last_observation)
 ```
 
 Sort on `taxonID`:
