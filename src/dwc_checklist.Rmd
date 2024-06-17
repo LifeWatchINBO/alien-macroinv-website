@@ -31,21 +31,6 @@ library(janitor)        # To clean input data
 library(readxl)         # To read Excel files
 ```
 
-Set file paths (all paths should be relative to this script):
-
-```{r}
-# Raw files:
-raw_data_file = "../data/raw/AI_2016_Boets_etal_Supplement.xls"
-sources_file = "../data/raw/sources.tsv"
-
-# Processed files:
-dwc_taxon_file = "../data/processed/dwc_checklist/taxon.csv"
-dwc_distribution_file = "../data/processed/dwc_checklist/distribution.csv"
-dwc_profile_file = "../data/processed/dwc_checklist/speciesprofile.csv"
-dwc_description_file = "../data/processed/dwc_checklist/description.csv"
-```
-
-
 # Read source data
 
 The data is maintained in [this Google Spreadsheet](https://docs.google.com/spreadsheets/d/1LeXXbry2ArK2rngsmFjz_xErwE1KwQ8ujtvHNmTVA6E/edit#gid=510059691).
@@ -88,7 +73,7 @@ input_data <-
 The raw data contains (abbreviated) citations in `raw_reference` (e.g. `van Haaren and Soors 2009`). We want to use full reference (e.g. `van Haaren T, Soors J (2009) Sinelobus stanfordi (Richardson, 1901): a new crustacean invader in Europe. Aquatic Invasions 4: 703–711, https://doi.org/10.3391/ai.2009.4.4.20`), which are stored in a separate sources file. We will join the two here, so we can use this information in the core and/or extensions.
 
 ```{r}
-sources <- read.table(sources_file, sep = "\t", quote = "", colClasses = "character",  fileEncoding = "UTF8", header = T)
+sources <- read.table("../data/raw/sources.tsv", sep = "\t", quote = "", colClasses = "character",  fileEncoding = "UTF8", header = T)
 ```
 
 Clean `raw_reference` somewhat:
@@ -139,7 +124,7 @@ taxon <-
     rightsHolder = "Ghent University Aquatic Ecology",
     #accessRights = "https://www.inbo.be/en/norms-data-use",
     datasetID = "https://doi.org/10.15468/yxcq07",
-    #institutionCode = "RBINS",
+    #institutionCode = "",
     datasetName = "Inventory of alien macroinvertebrates in Flanders, Belgium",
     taxonID = taxon_id,
     scientificName = scientific_name,
@@ -166,11 +151,7 @@ taxon <-
   )
 ```
 
-Save to CSV:
 
-```{r}
-write_csv(taxon, dwc_taxon_file, na = "")
-```
 
 ## Further pre-processing:
 
@@ -306,11 +287,7 @@ distribution %>%
   head()
 ```
 
-Save to CSV:
 
-```{r}
-write_csv(distribution, dwc_distribution_file, na = "")
-```
 
 # Create species profile extension
 
@@ -407,11 +384,6 @@ Preview data:
 species_profile %>% head()
 ```
 
-Save to CSV:
-
-```{r}
-write_csv(species_profile, dwc_profile_file, na = "")
-```
 
 # Create description extension
 
@@ -670,8 +642,12 @@ description_ext %>%
   head()
 ```
 
-Save to CSV:
+# Save to CSV:
 
 ```{r}
-write_csv(description_ext, dwc_description_file, na = "")
+write_csv(taxon, "../data/processed/dwc_checklist/taxon.csv", na = "")
+write_csv(distribution, "../data/processed/dwc_checklist/distribution.csv", na = "")
+write_csv(species_profile, "../data/processed/dwc_checklist/speciesprofile.csv", na = "")
+write_csv(description_ext, "../data/processed/dwc_checklist/description.csv", na = "")
 ```
+
