@@ -213,105 +213,38 @@ distribution <-
 ```
 
 
+## Species profile extension
+
+In this extension we will express broad habitat characteristics of the species (e.g. `isTerrestrial`).
+
+Create a dataframe with unique taxa only (ignoring multiple distribution rows).
+Only keep records for which `terrestrial`, `marine` and `freshwater` is not empty.
+
+Map the data to [Species Profile](http://rs.gbif.org/extension/gbif/1.0/speciesprofile.xml).
+
+```{r}
+species_profile <-
+  input_data %>%
+  distinct(taxon_id, .keep_all = TRUE) %>% 
+  filter(
+    !is.na(terrestrial) |
+      !is.na(marine) |
+      !is.na(freshwater)
+  ) %>% 
+  mutate(
+    .keep = "none",
+    taxonID = taxon_id,
+    isMarine = marine,
+    isFreshwater = freshwater,
+    isTerrestrial = terrestrial
+  ) %>% 
+  arrange(taxonID)
+```
+
 Add prefix raw_ to all column names, this to avoid name clashes with Darwin Core terms:
 
 ```{r}
 colnames(input_data) <- paste0("raw_", colnames(input_data))
-```
-
-# Create species profile extension
-
-In this extension will express broad habitat characteristics (e.g. `isMarine`) of the species.
-
-```{r start_species_profile}
-species_profile <- input_data
-```
-
-Habitat information can be found in `raw_salinity_zone`, which describes whether a species is found in brackish (`B`), freshwater (`F`), marine (`M`) or combined (`B/M` or `F/B`) salinity zones.
-
-Show unique values:
-
-```{r}
-species_profile %>%
-  distinct(raw_salinity_zone) %>%
-  arrange(raw_salinity_zone)
-```
-
-This is a manually created overview of how we will map the `raw_salinity_zone` to `isMarine`, `isFreshwater` and `isTerrestrial`. Note: the latter term is added for completeness, but will be `FALSE` for all species in this dataset:
-
-```{r, echo = FALSE}
-as.data.frame(matrix(data = c(
-  "F", "FALSE", "TRUE", "FALSE",
-  "M", "TRUE", "FALSE", "FALSE",
-  "B/M", "TRUE", "FALSE", "FALSE",
-  "F/B", "FALSE", "TRUE", "FALSE",
-  "B", "TRUE", "TRUE", "FALSE"),
-  nrow = 5, ncol = 4, byrow = TRUE,
-  dimnames = list (c(1:5), c("salinity zone", "isMarine", "isFreshwater", "isTerrestrial"))
-))
-```
-
-## Term mapping
-
-Map the data to [Species Profile](http://rs.gbif.org/extension/gbif/1.0/speciesprofile.xml).
-
-### taxonID
-
-```{r}
-species_profile %<>% mutate(taxonID = raw_taxon_id)
-```
-
-### isMarine
-
-```{r}
-species_profile %<>% mutate(isMarine = case_when(
-  raw_salinity_zone == "M" | raw_salinity_zone == "B/M" | raw_salinity_zone == "B" ~ "TRUE",
-  TRUE ~ "FALSE"
-))
-```
-
-### isFreshwater
-
-```{r}
-species_profile %<>% mutate(isFreshwater = case_when(
-  raw_salinity_zone == "F" | raw_salinity_zone == "F/B" | raw_salinity_zone == "B" ~ "TRUE",
-  TRUE ~"FALSE"
-))
-```
-
-### isTerrestrial
-
-```{r}
-species_profile %<>% mutate(isTerrestrial = "FALSE")
-```
-
-Show mapped values:
-
-```{r}
-species_profile %>%
-  select(raw_salinity_zone, isMarine, isFreshwater, isTerrestrial) %>%
-  group_by_all() %>%
-  summarize(records = n())
-```
-
-## Post-processing
-
-Remove the original columns:
-
-```{r}
-species_profile %<>% select(-starts_with("raw_"))
-```
-
-Sort on `taxonID`:
-
-```{r}
-species_profile %<>% arrange(taxonID)
-```
-
-Preview data:
-
-```{r}
-species_profile %>% head()
 ```
 
 
