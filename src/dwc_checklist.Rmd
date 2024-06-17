@@ -29,7 +29,6 @@ library(magrittr)       # To use %<>% pipes
 library(here)           # To find files
 library(janitor)        # To clean input data
 library(readxl)         # To read Excel files
-library(digest)         # To generate hashes
 ```
 
 Set file paths (all paths should be relative to this script):
@@ -63,39 +62,39 @@ Copy the source data to the repository to keep track of changes:
 write_csv(raw_data, here("data", "raw", "alien_macroinvertebrates_dump.csv"), na = "")
 ```
 
-Clean the data somewhat: remove empty rows if present:
+
+
+# Preprocessing: tidy data and add taxon ID's
+
+To link taxa with information in the extension(s), each taxon needs a unique and relatively stable `taxonID`. We have created one in the form of `dataset_shortname:taxon:hash`, where `hash` is unique code based on scientific name and kingdom. Once this is created, it is added to the source data. 
 
 ```{r}
-raw_data %<>%
-  remove_empty("rows") %>%    # Remove empty rows
-  clean_names()               # Have sensible (lowercase) column names
-```
-
-```{r}
-# Read the source data:
-sources <- read.table(sources_file, sep = "\t", quote = "", colClasses = "character",  fileEncoding = "UTF8", header = T)
-```
-
-## Generate taxonID
-
-To uniquely identify a taxon in the taxon core and reference taxa in the extensions, we need a `taxonID`. Since we need it in all generated files, we generate it here in the raw data frame. It is a combination of `dataset-shortname:taxon:` and a hash based on the scientific name. As long as the scientific name doesn't change, the ID will be stable:
-
-```{r}
-# Vectorize the digest function (The digest() function isn't vectorized. So if you pass in a vector, you get one value for the whole vector rather than a digest for each element of the vector):
-vdigest <- Vectorize(digest)
-
-# Generate taxonID:
-raw_data %<>% mutate(taxon_id = paste("alien-macroinvertebrates-checklist", "taxon", vdigest(scientific_name, algo="md5"), sep = ":"))
+input_data <-
+  raw_data %>%
+  remove_empty("rows") %>%
+  clean_names() %>%
+  mutate(
+    taxon_id = paste(
+      "alien-macroinvertebrates-checklist",
+      "taxon",
+      .data$taxon_id_hash,
+      sep = ":"
+    )
+  )
 ```
 
 ## Use full references
 
 The raw data contains (abbreviated) citations in `raw_reference` (e.g. `van Haaren and Soors 2009`). We want to use full reference (e.g. `van Haaren T, Soors J (2009) Sinelobus stanfordi (Richardson, 1901): a new crustacean invader in Europe. Aquatic Invasions 4: 703–711, https://doi.org/10.3391/ai.2009.4.4.20`), which are stored in a separate sources file. We will join the two here, so we can use this information in the core and/or extensions.
 
+```{r}
+sources <- read.table(sources_file, sep = "\t", quote = "", colClasses = "character",  fileEncoding = "UTF8", header = T)
+```
+
 Clean `raw_reference` somewhat:
 
 ```{r}
-raw_data %<>% mutate(reference = recode(source,
+input_data %<>% mutate(reference = recode(source,
   "Adam  and Leloup 1934" = "Adam and Leloup 1934", # Remove whitespace
   "Van  Haaren and Soors 2009" = "van Haaren and Soors 2009", # Remove whitespace and lowercase "van"
   "This study" = "Boets et al. 2016",
@@ -103,17 +102,17 @@ raw_data %<>% mutate(reference = recode(source,
 )
 ```
 
-Left join `raw_data` with `sources` on `references` = `citation`:
+Left join `input_data` with `sources` on `references` = `citation`:
 
 ```{r}
-raw_data %<>% 
+input_data %<>% 
   left_join(sources, by = c("source" = "citation"))
 ```
 
 Show result (note: `Boets. et al. unpub data` and `Collection RBINS` don't have a full reference):
 
 ```{r}
-raw_data %>% 
+input_data %>% 
   mutate(full_reference = substr(full_reference, 1, 50)) %>% # Shorten full_reference to make it easier to display
   select(reference, full_reference) %>%
   group_by_all %>%
@@ -126,19 +125,19 @@ raw_data %>%
 Add prefix `raw_` to all column names to avoid name clashes with Darwin Core terms:
 
 ```{r}
-colnames(raw_data) <- paste0("raw_", colnames(raw_data))
+colnames(input_data) <- paste0("raw_", colnames(input_data))
 ```
  
 Preview data:
 
 ```{r}
-head(raw_data)
+head(input_data)
 ```
 
 # Create taxon core
 
 ```{r start_taxon}
-taxon <- raw_data
+taxon <- input_data
 ```
 
 ## Term mapping
@@ -267,7 +266,7 @@ write_csv(taxon, dwc_taxon_file, na = "")
 # Create distribution extension
 
 ```{r start_distribution}
-distribution <- raw_data
+distribution <- input_data
 ```
 
 ## Term mapping
@@ -396,7 +395,7 @@ write_csv(distribution, dwc_distribution_file, na = "")
 In this extension will express broad habitat characteristics (e.g. `isMarine`) of the species.
 
 ```{r start_species_profile}
-species_profile <- raw_data
+species_profile <- input_data
 ```
 
 Habitat information can be found in `raw_salinity_zone`, which describes whether a species is found in brackish (`B`), freshwater (`F`), marine (`M`) or combined (`B/M` or `F/B`) salinity zones.
@@ -511,7 +510,7 @@ Native range information (e.g. `South-America`) can be found in `raw_native_rang
 Create separate dataframe:
 
 ```{r start_native_range}
-native_range <- raw_data
+native_range <- input_data
 ```
 
 Show unique values:
@@ -597,7 +596,7 @@ Pathway information (e.g. `aquaculture`) can be found in `raw_pathway_of_introdu
 Create separate dataframe:
 
 ```{r start_pathway}
-pathway <- raw_data
+pathway <- input_data
 ```
 
 Show unique values:
@@ -686,7 +685,7 @@ There is no invasion stage information (e.g. `casual`) in the raw data, but we w
 Create separate dataframe:
 
 ```{r start_invasion_stage}
-invasion_stage <- raw_data
+invasion_stage <- input_data
 ```
 
 We use the [invasion stage vocabulary from Blackburn et al. (2011)](http://doc.rero.ch/record/24725/files/bach_puf.pdf) to standardize this information.
