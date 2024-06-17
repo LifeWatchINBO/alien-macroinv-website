@@ -175,7 +175,7 @@ distribution <-
   filter( # keep NA value for species with no pathway provided
     !is.na(pathway) |
       (is.na(pathway) & key == "introduction_pathway_1")
-      ) %>%
+    ) %>%
   # other terms
   mutate(
     taxonID = taxon_id,
