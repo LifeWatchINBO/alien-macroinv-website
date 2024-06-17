@@ -322,95 +322,6 @@ Create a `type` field to indicate the type of description:
 native_range %<>% mutate(type = "native range")
 ```
 
-## Pathway of introduction
-
-Pathway information (e.g. `aquaculture`) can be found in `raw_pathway_of_introduction`. This original information was interpreted by @timadriaens to a more standardized value in `raw_old_introduction_pathway_will_be_deleted` (with remarks about this transformation in `raw_old_introduction_pathway_will_be_deleted_remarks`). 
-
-Create separate dataframe:
-
-```{r start_pathway}
-pathway <- input_data
-```
-
-Show unique values:
-
-```{r}
-native_range %>%
-  distinct(raw_old_introduction_pathway_will_be_deleted) %>%
-  arrange(raw_old_introduction_pathway_will_be_deleted)
-```
-
-`raw_old_introduction_pathway_will_be_deleted` contains multiple values (currently not more than 3), so we separate it in 3 columns:
-
-```{r}
-pathway %<>% separate(raw_old_introduction_pathway_will_be_deleted, 
-  into = c("pathway_1", "pathway_2", "pathway_3"),
-  sep = " \\| ",
-  remove = TRUE,
-  convert = FALSE,
-  extra = "merge",
-  fill = "right"
-)
-```
-
-Gather in a `key` and `value` column:
-
-```{r}
-pathway %<>% gather(
-  key, value,
-  pathway_1, pathway_2, pathway_3,
-  na.rm = TRUE, # Also removes records for which there is no pathway_1
-  convert = FALSE
-)
-```
-
-We use the [CBD 2014 pathway vocabulary](https://www.cbd.int/doc/meetings/sbstta/sbstta-18/official/sbstta-18-09-add1-en.pdf) to standardize this information. The vocubulary has [these values](https://github.com/trias-project/vocab/tree/master/vocabulary/pathway).
-
-Map values:
-
-```{r}
-pathway %<>% mutate (mapped_value = recode(value,
-  "Aquaculture" = "escape_aquaculture",
-  "Aquaculture / mariculture" = "escape_aquaculture",
-  "Contaminant on animals (except parasites, species transported by host/vector)" = "contaminant_on_animals",
-  "Interconnected waterways/basins/seas" = "corridor_water",
-  "Mariculture" = "escape_aquaculture",
-  "Other means of transport" = "stowaway_other",
-  "Pet/aquarium/terrarium species (including live food for such species )" = "escape_pet",
-  "Ship/boat ballast water" = "stowaway_ballast_water",
-  "Ship/boat hull fouling" = "stowaway_hull_fouling"))
-```
-
-Add the prefix `cbd_2014_pathway:` to refer to this standard:
-
-```{r}
-pathway %<>% mutate(mapped_value = paste ("cbd_2014_pathway", mapped_value, sep = ":"))
-```
-
-Show mapped values:
-
-```{r}
-pathway %>%
-  select(value, mapped_value) %>%
-  group_by(value, mapped_value) %>%
-  summarize(records = n()) %>%
-  arrange(value)
-```
-
-Drop the `key` and `value` columns and rename `mapped_value` as `description`:
-
-```{r}
-pathway %<>%
-  select(-key, -value) %>%
-  rename(description = mapped_value)
-```
-
-Create a `type` field to indicate the type of description:
-
-```{r}
-pathway %<>% mutate(type = "pathway")
-```
-
 ### Invasion stage
 
 There is no invasion stage information (e.g. `casual`) in the raw data, but we want to add it none the less. 
@@ -440,7 +351,7 @@ invasion_stage %<>% mutate(type = "invasion stage")
 Union native range, pathway of introduction and invasion stage:
 
 ```{r start_description_ext}
-description_ext <- bind_rows(native_range, pathway, invasion_stage)
+description_ext <- bind_rows(native_range, invasion_stage)
 ```
 
 ## Term mapping
