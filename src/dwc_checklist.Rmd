@@ -46,14 +46,21 @@ dwc_profile_file = "../data/processed/dwc_checklist/speciesprofile.csv"
 dwc_description_file = "../data/processed/dwc_checklist/description.csv"
 ```
 
-# Read and pre-process raw data
 
-Create a data frame `raw_data` from the source data:
+# Read source data
+
+The data is maintained in [this Google Spreadsheet](https://docs.google.com/spreadsheets/d/1LeXXbry2ArK2rngsmFjz_xErwE1KwQ8ujtvHNmTVA6E/edit#gid=510059691).
+
+Read the relevant worksheet (published as csv):
+
+```{r read_source_data}
+raw_data <- read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vTl8IEk2fProQorMu5xKQPdMXl3OQp-c0f6eBXitv0BiVFZ3JSJCde0PtbFXuETgguf6vK8b43FDX1C/pub?gid=510059691&single=true&output=csv", show_col_types = FALSE)
+```
+
+Copy the source data to the repository to keep track of changes:
 
 ```{r}
-# Read the source data:
-raw_data <- read_excel(raw_data_file, sheet = "checklist", na = "NA") 
-sources <- read.table(sources_file, sep = "\t", quote = "", colClasses = "character",  fileEncoding = "UTF8", header = T)
+write_csv(raw_data, here("data", "raw", "alien_macroinvertebrates_dump.csv"), na = "")
 ```
 
 Clean the data somewhat: remove empty rows if present:
@@ -64,6 +71,10 @@ raw_data %<>%
   clean_names()               # Have sensible (lowercase) column names
 ```
 
+```{r}
+# Read the source data:
+sources <- read.table(sources_file, sep = "\t", quote = "", colClasses = "character",  fileEncoding = "UTF8", header = T)
+```
 
 ## Generate taxonID
 
@@ -74,7 +85,7 @@ To uniquely identify a taxon in the taxon core and reference taxa in the extensi
 vdigest <- Vectorize(digest)
 
 # Generate taxonID:
-raw_data %<>% mutate(taxon_id = paste("alien-macroinvertebrates-checklist", "taxon", vdigest(species, algo="md5"), sep = ":"))
+raw_data %<>% mutate(taxon_id = paste("alien-macroinvertebrates-checklist", "taxon", vdigest(scientific_name, algo="md5"), sep = ":"))
 ```
 
 ## Use full references
@@ -84,7 +95,7 @@ The raw data contains (abbreviated) citations in `raw_reference` (e.g. `van Haar
 Clean `raw_reference` somewhat:
 
 ```{r}
-raw_data %<>% mutate(reference = recode(reference,
+raw_data %<>% mutate(reference = recode(source,
   "Adam  and Leloup 1934" = "Adam and Leloup 1934", # Remove whitespace
   "Van  Haaren and Soors 2009" = "van Haaren and Soors 2009", # Remove whitespace and lowercase "van"
   "This study" = "Boets et al. 2016",
@@ -96,7 +107,7 @@ Left join `raw_data` with `sources` on `references` = `citation`:
 
 ```{r}
 raw_data %<>% 
-  left_join(sources, by = c("reference" = "citation"))
+  left_join(sources, by = c("source" = "citation"))
 ```
 
 Show result (note: `Boets. et al. unpub data` and `Collection RBINS` don't have a full reference):
@@ -173,7 +184,7 @@ taxon %<>% mutate(taxonID = raw_taxon_id)
 ### scientificName
 
 ```{r}
-taxon %<>% mutate(scientificName = raw_species) %>% mutate(scientificName = str_trim(scientificName))
+taxon %<>% mutate(scientificName = raw_scientific_name) %>% mutate(scientificName = str_trim(scientificName))
 ```
 
 Verify that `scientificName` contains unique values:
@@ -216,8 +227,8 @@ taxon %<>% mutate(family = raw_family)
 
 ```{r}
 taxon %<>% mutate(taxonRank = case_when(
-  raw_species == "Dreissena rostriformis bugensis" ~ "subspecies",
-  raw_species != "Dreissena rostriformis bugensis" ~ "species")
+  raw_scientific_name == "Dreissena rostriformis bugensis" ~ "subspecies",
+  raw_scientific_name != "Dreissena rostriformis bugensis" ~ "species")
 )
 ```
 
@@ -305,18 +316,18 @@ distribution %<>% mutate(establishmentMeans = "introduced")
 
 The distribution information applies to a certain date range, which we will express here as an ISO 8601 date `yyyy/yyyy` (`start_year/end_year`).
 
-The date information can be found in `raw_first_occurrence_in_flanders`, but it is currently expressed in different formats: `yyyy`, `< yyyy`, `<yyyy`, `before yyyy` and `yyyy-yyyy`:
+The date information can be found in `raw_date_first_observation`, but it is currently expressed in different formats: `yyyy`, `< yyyy`, `<yyyy`, `before yyyy` and `yyyy-yyyy`:
 
 ```{r}
 distribution %>%
-  distinct(raw_first_occurrence_in_flanders) %>%
-  arrange(raw_first_occurrence_in_flanders)
+  distinct(raw_date_first_observation) %>%
+  arrange(raw_date_first_observation)
 ```
 
-We remove the special characters from `raw_first_occurrence_in_flanders` and save as `year`:
+We remove the special characters from `raw_date_first_observation` and save as `year`:
 
 ```{r}
-distribution %<>% mutate(year = str_replace_all(raw_first_occurrence_in_flanders, "(< |before |<)", ""))
+distribution %<>% mutate(year = str_replace_all(raw_date_first_observation, "(< |before |<)", ""))
 ```
 
 Then, we split the information on `-` to get a `start_year` and `end_year`. Most records won't have an `end_year`. For those we'll consider the publication year of Boets et al. (2016) as the date when the presence of the species was last verified, except for those taxa added to the checklist **after** the publication in 2016. In this case, `end_year` equals the date of re-publication.
@@ -338,12 +349,12 @@ distribution %<>%
   )
 ```
 
-Compare formatted dates with original dates in `raw_first_occurrence_in_flanders`:
+Compare formatted dates with original dates in `raw_date_first_observation`:
 
 ```{r}
 distribution %>%
-  distinct(raw_first_occurrence_in_flanders, eventDate) %>%
-  arrange(raw_first_occurrence_in_flanders)
+  distinct(raw_date_first_observation, eventDate) %>%
+  arrange(raw_date_first_observation)
 ```
 
 ### source
@@ -495,7 +506,7 @@ For each descriptor, we create a separate dataframe to process the specific info
 
 ## Native range
 
-Native range information (e.g. `South-America`) can be found in `raw_origin`. 
+Native range information (e.g. `South-America`) can be found in `raw_native_range`. 
 
 Create separate dataframe:
 
@@ -507,14 +518,14 @@ Show unique values:
 
 ```{r}
 native_range %>%
-  distinct(raw_origin) %>%
-  arrange(raw_origin)
+  distinct(raw_native_range) %>%
+  arrange(raw_native_range)
 ```
 
-`raw_origin` contains multiple values (currently not more than 3), so we separate it in 3 columns:
+`raw_native_range` contains multiple values (currently not more than 3), so we separate it in 3 columns:
 
 ```{r}
-native_range %<>% separate(raw_origin, 
+native_range %<>% separate(raw_native_range, 
   into = c("native_range_1", "native_range_2", "native_range_3"),
   sep = ", ",
   remove = TRUE,
@@ -581,7 +592,7 @@ native_range %<>% mutate(type = "native range")
 
 ## Pathway of introduction
 
-Pathway information (e.g. `aquaculture`) can be found in `raw_pathway_of_introduction`. This original information was interpreted by @timadriaens to a more standardized value in `raw_pathway_mapping` (with remarks about this transformation in `raw_pathway_mapping_remarks`). 
+Pathway information (e.g. `aquaculture`) can be found in `raw_pathway_of_introduction`. This original information was interpreted by @timadriaens to a more standardized value in `raw_old_introduction_pathway_will_be_deleted` (with remarks about this transformation in `raw_old_introduction_pathway_will_be_deleted_remarks`). 
 
 Create separate dataframe:
 
@@ -593,14 +604,14 @@ Show unique values:
 
 ```{r}
 native_range %>%
-  distinct(raw_pathway_mapping) %>%
-  arrange(raw_pathway_mapping)
+  distinct(raw_old_introduction_pathway_will_be_deleted) %>%
+  arrange(raw_old_introduction_pathway_will_be_deleted)
 ```
 
-`raw_pathway_mapping` contains multiple values (currently not more than 3), so we separate it in 3 columns:
+`raw_old_introduction_pathway_will_be_deleted` contains multiple values (currently not more than 3), so we separate it in 3 columns:
 
 ```{r}
-pathway %<>% separate(raw_pathway_mapping, 
+pathway %<>% separate(raw_old_introduction_pathway_will_be_deleted, 
   into = c("pathway_1", "pathway_2", "pathway_3"),
   sep = " \\| ",
   remove = TRUE,
