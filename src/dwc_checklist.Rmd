@@ -120,141 +120,50 @@ input_data %>%
   arrange(reference)
 ```
 
-## Further pre-processing:
 
-Add prefix `raw_` to all column names to avoid name clashes with Darwin Core terms:
 
-```{r}
-colnames(input_data) <- paste0("raw_", colnames(input_data))
-```
- 
-Preview data:
 
-```{r}
-head(input_data)
-```
+# Darwin Core mapping
 
-# Create taxon core
+## Taxon core
 
-```{r start_taxon}
-taxon <- input_data
-```
-
-## Term mapping
-
-Map the data to [Darwin Core Taxon](http://rs.gbif.org/core/dwc_taxon_2015-04-24.xml).
- 
-### language
+Create a dataframe with unique taxa only (ignoring multiple distribution rows). Map the data to [Darwin Core Taxon](http://rs.gbif.org/core/dwc_taxon_2015-04-24.xml).
 
 ```{r}
-taxon %<>% mutate(language = "en")
-```
-
-### license
-
-```{r}
-taxon %<>% mutate(license = "http://creativecommons.org/publicdomain/zero/1.0/")
-```
-
-### rightsHolder
-
-```{r}
-taxon %<>% mutate(rightsHolder = "Ghent University Aquatic Ecology")
-```
-
-### datasetID
-
-```{r}
-taxon  %<>% mutate(datasetID = "https://doi.org/10.15468/yxcq07")
-```
-
-### datasetName
-
-```{r}
-taxon %<>% mutate(datasetName = "Inventory of alien macroinvertebrates in Flanders, Belgium")
-```
-
-### taxonID
-
-```{r}
-taxon %<>% mutate(taxonID = raw_taxon_id)
-```
-
-### scientificName
-
-```{r}
-taxon %<>% mutate(scientificName = raw_scientific_name) %>% mutate(scientificName = str_trim(scientificName))
-```
-
-Verify that `scientificName` contains unique values:
-
-```{r}
-any(duplicated(taxon$scientificName)) # Should be FALSE
-```
-
-### kingdom
-
-```{r}
-taxon %<>% mutate(kingdom = "Animalia")
-```
-
-### phylum
-
-```{r}
-taxon %<>% mutate(phylum = recode(raw_phylum,
-  "Crustacea" = "Arthropoda" # Crustacea is a subphylum, the correct phylum is "Arthropoda"
-))
-```
-
-### order
-
-```{r}
-taxon %<>%
-  mutate(order = recode(raw_order,
-    "Veneroidea" = "Venerida" # Correct typo
-  )) %>%
-  mutate(order = str_trim(order)) # Oddly, not all whitespace got detected and trimmed by read_excel
-```
-
-### family
-
-```{r}
-taxon %<>% mutate(family = raw_family)
-```
-
-### taxonRank
-
-```{r}
-taxon %<>% mutate(taxonRank = case_when(
-  raw_scientific_name == "Dreissena rostriformis bugensis" ~ "subspecies",
-  raw_scientific_name != "Dreissena rostriformis bugensis" ~ "species")
-)
-```
-
-### nomenclaturalCode
-
-```{r}
-taxon %<>% mutate(nomenclaturalCode = "ICZN")
-```
- 
-## Post-processing
-
-Remove the original columns:
-
-```{r}
-taxon %<>% select(-starts_with("raw_"))
-```
-
-Sort on `taxonID`:
-
-```{r}
-taxon %<>% arrange(taxonID)
-```
-
-Preview data:
-
-```{r}
-head(taxon)
+taxon <-
+  input_data %>%
+  distinct(taxon_id, .keep_all = TRUE) %>%
+  mutate(
+    language = "en",
+    license = "http://creativecommons.org/publicdomain/zero/1.0/",
+    rightsHolder = "Ghent University Aquatic Ecology",
+    #accessRights = "https://www.inbo.be/en/norms-data-use",
+    datasetID = "https://doi.org/10.15468/yxcq07",
+    #institutionCode = "RBINS",
+    datasetName = "Inventory of alien macroinvertebrates in Flanders, Belgium",
+    taxonID = taxon_id,
+    scientificName = scientific_name,
+    kingdom = kingdom,
+    phylum = phylum,
+    #class = class,
+    order = order,
+    family = family,
+    #genus = genus,
+    taxonRank = taxon_rank,
+    nomenclaturalCode = nomenclatural_code,
+    .keep = "none"
+  ) %>% 
+  arrange(taxonID) %>% 
+  select(
+    "language", "license", "rightsHolder", # "accessRights", 
+    "datasetID",
+    #"institutionCode",
+    "datasetName", "taxonID", "scientificName", "kingdom", 
+    "phylum", # "class", 
+    "order", "family", #"genus", 
+    "taxonRank",
+    "nomenclaturalCode"
+  )
 ```
 
 Save to CSV:
@@ -262,6 +171,19 @@ Save to CSV:
 ```{r}
 write_csv(taxon, dwc_taxon_file, na = "")
 ```
+
+## Further pre-processing:
+
+Add prefix `raw_` to all column names to avoid name clashes with Darwin Core terms:
+
+```{r}
+colnames(input_data) <- paste0("raw_", colnames(input_data))
+```
+
+
+
+
+
 
 # Create distribution extension
 
