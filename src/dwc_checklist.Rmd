@@ -47,8 +47,6 @@ Copy the source data to the repository to keep track of changes:
 write_csv(raw_data, here("data", "raw", "alien_macroinvertebrates_dump.csv"), na = "")
 ```
 
-
-
 # Preprocessing: tidy data and add taxon ID's
 
 To link taxa with information in the extension(s), each taxon needs a unique and relatively stable `taxonID`. We have created one in the form of `dataset_shortname:taxon:hash`, where `hash` is unique code based on scientific name and kingdom. Once this is created, it is added to the source data. 
@@ -67,46 +65,6 @@ input_data <-
     )
   )
 ```
-
-## Use full references
-
-The raw data contains (abbreviated) citations in `raw_reference` (e.g. `van Haaren and Soors 2009`). We want to use full reference (e.g. `van Haaren T, Soors J (2009) Sinelobus stanfordi (Richardson, 1901): a new crustacean invader in Europe. Aquatic Invasions 4: 703–711, https://doi.org/10.3391/ai.2009.4.4.20`), which are stored in a separate sources file. We will join the two here, so we can use this information in the core and/or extensions.
-
-```{r}
-sources <- read.table("../data/raw/sources.tsv", sep = "\t", quote = "", colClasses = "character",  fileEncoding = "UTF8", header = T)
-```
-
-Clean `raw_reference` somewhat:
-
-```{r}
-input_data %<>% mutate(reference = recode(source,
-  "Adam  and Leloup 1934" = "Adam and Leloup 1934", # Remove whitespace
-  "Van  Haaren and Soors 2009" = "van Haaren and Soors 2009", # Remove whitespace and lowercase "van"
-  "This study" = "Boets et al. 2016",
-  "Nyst 1835; Adam 1947" = "Nyst 1835 | Adam 1947" )
-)
-```
-
-Left join `input_data` with `sources` on `references` = `citation`:
-
-```{r}
-input_data %<>% 
-  left_join(sources, by = c("source" = "citation"))
-```
-
-Show result (note: `Boets. et al. unpub data` and `Collection RBINS` don't have a full reference):
-
-```{r}
-input_data %>% 
-  mutate(full_reference = substr(full_reference, 1, 50)) %>% # Shorten full_reference to make it easier to display
-  select(reference, full_reference) %>%
-  group_by_all %>%
-  summarize(records = n()) %>%
-  arrange(reference)
-```
-
-
-
 
 # Darwin Core mapping
 
@@ -197,7 +155,7 @@ distribution <-
       !is.na(date_first_observation) & !is.na(date_last_observation) ~ 
         paste(date_first_observation, date_last_observation, sep = "/")
     ),
-    source = full_reference,
+    source = source,
     occurrenceRemarks = occurrence_remarks
   ) %>%
   select(
@@ -255,10 +213,10 @@ description <-
     taxonID = taxon_id,
     description = str_trim(native_range),
     type = "native range",
-    source = full_reference,
+    source = source,
     language = "en"
     ) %>% 
-  select("taxonID", "description", "typ", "source", "language") %>% 
+  select("taxonID", "description", "type", "source", "language") %>% 
   arrange(taxonID)
 ```
 
