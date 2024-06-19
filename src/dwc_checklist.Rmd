@@ -318,36 +318,12 @@ Create a `type` field to indicate the type of description:
 native_range %<>% mutate(type = "native range")
 ```
 
-### Invasion stage
-
-There is no invasion stage information (e.g. `casual`) in the raw data, but we want to add it none the less. 
-
-Create separate dataframe:
-
-```{r start_invasion_stage}
-invasion_stage <- input_data
-```
-
-We use the [invasion stage vocabulary from Blackburn et al. (2011)](http://doc.rero.ch/record/24725/files/bach_puf.pdf) to standardize this information.
-
-Here, we consider all species to be `established` as they come from live samples in running waters. We decided **not** to use the terms `naturalized` (because often, there's no sensible criterium to distinguish between casual/naturalized of naturalized/established) and `invasive` (which is a term that can only be applied after a risk assessment).
-
-```{r}
-invasion_stage %<>% mutate(description = "established")
-```
-
-Create a `type` field to indicate the type of description:
-
-```{r}
-invasion_stage %<>% mutate(type = "invasion stage")
-```
-
 ## Union descriptions
 
 Union native range, pathway of introduction and invasion stage:
 
 ```{r start_description_ext}
-description_ext <- bind_rows(native_range, invasion_stage)
+description_ext <- bind_rows(native_range)
 ```
 
 ## Term mapping
