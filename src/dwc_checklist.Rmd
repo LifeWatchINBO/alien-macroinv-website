@@ -133,7 +133,7 @@ taxon <-
     #class = class,
     order = order,
     family = family,
-    #genus = genus,
+    genus = genus,
     taxonRank = taxon_rank,
     nomenclaturalCode = nomenclatural_code,
     .keep = "none"
@@ -141,13 +141,10 @@ taxon <-
   arrange(taxonID) %>% 
   select(
     "language", "license", "rightsHolder", # "accessRights", 
-    "datasetID",
-    #"institutionCode",
+    "datasetID", #"institutionCode",
     "datasetName", "taxonID", "scientificName", "kingdom", 
     "phylum", # "class", 
-    "order", "family", #"genus", 
-    "taxonRank",
-    "nomenclaturalCode"
+    "order", "family", "genus", "taxonRank", "nomenclaturalCode"
   )
 ```
 
